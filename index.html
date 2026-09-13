@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filmarchiv Helmut Busse</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent:   #3D5A6B;
+    --accent2:  #5B8FA8;
+    --light:    #D4E3E8;
+    --lighter:  #EEF4F7;
+    --white:    #FFFFFF;
+    --text:     #2C2C2C;
+    --gray:     #6B7C8A;
+    --border:   #C8D8E0;
+    --green:    #4A7C59;
+    --shadow:   0 2px 12px rgba(61,90,107,.13);
+  }
+  body {
+    font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+    background: #f0f4f6;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Login Overlay ────────────────────────────────────────── */
+  #login-overlay {
+    position: fixed; inset: 0;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+  }
+  #login-box {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 48px 40px 40px;
+    width: 360px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.25);
+    text-align: center;
+  }
+  #login-box .film-icon { font-size: 48px; margin-bottom: 12px; }
+  #login-box h2 { color: var(--accent); font-size: 1.4rem; margin-bottom: 4px; }
+  #login-box p  { color: var(--gray); font-size: .9rem; margin-bottom: 28px; }
+  #login-box input {
+    width: 100%; padding: 12px 16px;
+    border: 2px solid var(--border); border-radius: 8px;
+    font-size: 1rem; margin-bottom: 12px;
+    outline: none; transition: border-color .2s;
+  }
+  #login-box input:focus { border-color: var(--accent2); }
+  #login-box button {
+    width: 100%; padding: 12px;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: background .2s;
+  }
+  #login-box button:hover { background: var(--accent2); }
+  #login-error {
+    color: #c0392b; font-size: .85rem;
+    margin-top: 10px; display: none;
+  }
+
+  /* ── Header ───────────────────────────────────────────────── */
+  header {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    color: #fff; padding: 32px 40px 28px;
+    box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 1.9rem; font-weight: 700; letter-spacing: .5px; }
+  header p  { font-size: .95rem; opacity: .85; margin-top: 4px; }
+  .header-meta {
+    display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .header-meta span {
+    background: rgba(255,255,255,.18);
+    border-radius: 20px; padding: 4px 14px;
+    font-size: .82rem; font-weight: 500;
+  }
+
+  /* ── Main Layout ──────────────────────────────────────────── */
+  main { max-width: 1300px; margin: 0 auto; padding: 28px 24px 60px; }
+
+  /* ── Filter Panel ─────────────────────────────────────────── */
+  #filter-panel {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 24px 28px;
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
+  }
+  #filter-panel h3 {
+    color: var(--accent); font-size: 1rem;
+    margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+  }
+  .filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+  }
+  .filter-group label {
+    display: block; font-size: .78rem; font-weight: 600;
+    color: var(--gray); text-transform: uppercase;
+    letter-spacing: .6px; margin-bottom: 5px;
+  }
+  .filter-group select,
+  .filter-group input[type="text"] {
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: .9rem; color: var(--text);
+    background: var(--lighter); outline: none;
+    transition: border-color .2s, background .2s;
+    appearance: none;
+  }
+  .filter-group select:focus,
+  .filter-group input[type="text"]:focus {
+    border-color: var(--accent2); background: #fff;
+  }
+  .filter-actions {
+    display: flex; align-items: flex-end; gap: 10px;
+  }
+  #btn-reset {
+    padding: 9px 20px;
+    background: var(--lighter); color: var(--accent);
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: .88rem; font-weight: 600; cursor: pointer;
+    transition: background .2s;
+    white-space: nowrap;
+  }
+  #btn-reset:hover { background: var(--light); }
+
+  /* ── Results Bar ──────────────────────────────────────────── */
+  #results-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; flex-wrap: wrap; gap: 8px;
+  }
+  #results-count { color: var(--gray); font-size: .9rem; }
+  #results-count strong { color: var(--accent); }
+
+  /* ── Film Grid ────────────────────────────────────────────── */
+  #film-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+  }
+  .film-card {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: transform .18s, box-shadow .18s;
+    display: flex; flex-direction: column;
+  }
+  .film-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 24px rgba(61,90,107,.18);
+  }
+  .card-header {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    padding: 14px 18px 12px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .card-nr {
+    background: rgba(255,255,255,.22);
+    color: #fff; font-weight: 700; font-size: .85rem;
+    border-radius: 6px; padding: 3px 9px;
+    min-width: 36px; text-align: center;
+  }
+  .card-title {
+    color: #fff; font-weight: 600; font-size: 1rem;
+    line-height: 1.3; flex: 1;
+  }
+  .card-body { padding: 16px 18px; flex: 1; }
+  .card-meta {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+  }
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--lighter); color: var(--accent);
+    border-radius: 20px; padding: 3px 10px;
+    font-size: .76rem; font-weight: 600;
+  }
+  .tag.land  { background: #e8f0e8; color: var(--green); }
+  .tag.ort   { background: #fef9e7; color: #8B6914; }
+  .tag.jahr  { background: var(--lighter); color: var(--accent); }
+  .card-inhalt {
+    font-size: .83rem; color: var(--gray);
+    line-height: 1.5; margin-bottom: 12px;
+  }
+  .card-persons {
+    display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px;
+  }
+  .person-tag {
+    background: #f0e8f4; color: #6B3D8A;
+    border-radius: 20px; padding: 2px 9px;
+    font-size: .74rem; font-weight: 600;
+  }
+  .card-keywords {
+    display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px;
+  }
+  .kw-tag {
+    background: #e8f4f0; color: #2E7D6B;
+    border-radius: 20px; padding: 2px 9px;
+    font-size: .74rem;
+  }
+  .card-footer {
+    padding: 12px 18px;
+    border-top: 1px solid var(--lighter);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .btn-film {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: .85rem; font-weight: 600;
+    cursor: pointer; text-decoration: none;
+    transition: background .2s;
+  }
+  .btn-film:hover { background: var(--accent2); }
+  .btn-film.placeholder {
+    background: var(--lighter); color: var(--gray);
+    cursor: default;
+  }
+  .btn-film.placeholder:hover { background: var(--lighter); }
+  .film-duration { font-size: .8rem; color: var(--gray); }
+
+  /* ── Empty State ──────────────────────────────────────────── */
+  #empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--gray); display: none;
+  }
+  #empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  #empty-state p { font-size: 1rem; }
+
+  /* ── Footer ───────────────────────────────────────────────── */
+  footer {
+    text-align: center; padding: 24px;
+    color: var(--gray); font-size: .82rem;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  /* ── Responsive ───────────────────────────────────────────── */
+  @media (max-width: 600px) {
+    header { padding: 20px; }
+    header h1 { font-size: 1.4rem; }
+    #filter-panel { padding: 16px; }
+    .filter-grid { grid-template-columns: 1fr 1fr; }
+    main { padding: 16px 12px 40px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN OVERLAY ──────────────────────────────────────────── -->
+<div id="login-overlay">
+  <div id="login-box">
+    <div class="film-icon">🎬</div>
+    <h2>Filmarchiv Busse</h2>
+    <p>Bitte melde dich an, um das Familienarchiv zu öffnen.</p>
+    <input type="text" id="login-user" placeholder="Benutzername" autocomplete="username">
+    <input type="password" id="login-pass" placeholder="Passwort" autocomplete="current-password">
+    <button onclick="doLogin()">Anmelden</button>
+    <div id="login-error">Benutzername oder Passwort falsch.</div>
+  </div>
+</div>
+
+<!-- ── HEADER ─────────────────────────────────────────────────── -->
+<header>
+  <h1>🎬 Filmarchiv Helmut Busse</h1>
+  <p>Privatarchiv der Familie Busse · Super-8-Filme 1959–1989</p>
+  <div class="header-meta">
+    <span>📽 54 Filme</span>
+    <span>📅 1959–1989</span>
+    <span>🌍 DDR · UdSSR · ČSSR · Polen · Ungarn · Bulgarien</span>
+    <span>🔒 Nur für Familienmitglieder</span>
+  </div>
+</header>
+
+<!-- ── MAIN ───────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Filter Panel -->
+  <div id="filter-panel">
+    <h3>🔍 Filter &amp; Suche</h3>
+    <div class="filter-grid">
+      <div class="filter-group" style="grid-column: span 2;">
+        <label>Freitextsuche</label>
+        <input type="text" id="f-search" placeholder="Titel, Ort, Inhalt …" oninput="applyFilters()">
+      </div>
+      <div class="filter-group">
+        <label>Jahr</label>
+        <select id="f-jahr" onchange="applyFilters()"><option value="">Alle Jahre</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Land</label>
+        <select id="f-land" onchange="applyFilters()"><option value="">Alle Länder</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Ort / Region</label>
+        <select id="f-ort" onchange="applyFilters()"><option value="">Alle Orte</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Person</label>
+        <select id="f-person" onchange="applyFilters()"><option value="">Alle Personen</option></select>
+      </div>
+      <div class="filter-group">
+        <label>Schlagwort</label>
+        <select id="f-kw" onchange="applyFilters()"><option value="">Alle Schlagworte</option></select>
+      </div>
+      <div class="filter-group filter-actions">
+        <button id="btn-reset" onclick="resetFilters()">✕ Filter zurücksetzen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Bar -->
+  <div id="results-bar">
+    <div id="results-count">Zeige <strong id="count-shown">54</strong> von <strong>54</strong> Filmen</div>
+  </div>
+
+  <!-- Film Grid -->
+  <div id="film-grid"></div>
+  <div id="empty-state">
+    <div class="icon">🎞</div>
+    <p>Keine Filme gefunden. Bitte Filter anpassen.</p>
+  </div>
+
+</main>
+
+<footer>
+  Filmarchiv Helmut Busse · Privatarchiv der Familie · Alle Rechte vorbehalten
+</footer>
+
+<script>
+// ── CREDENTIALS (change these!) ────────────────────────────────
+const USERS = {
+  "familie": "busse1960",
+  "ilse":    "ilse123",
+  "andreas": "andreas123",
+  "wieland": "wieland123"
+};
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim().toLowerCase();
+  const p = document.getElementById('login-pass').value;
+  if (USERS[u] && USERS[u] === p) {
+    document.getElementById('login-overlay').style.display = 'none';
+    sessionStorage.setItem('fa_auth', '1');
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+// Keep session
+if (sessionStorage.getItem('fa_auth') === '1') {
+  document.getElementById('login-overlay').style.display = 'none';
+}
+
+// ── FILM DATA ──────────────────────────────────────────────────
+const films = [
+  { nr:"01", titel:"Komet",                          jahr:1960, land:"DDR",    orte:["Schwerin"],                        personen:["Helmut","Ilse"],                                    keywords:["Chronik","Familie"],                inhalt:"" },
+  { nr:"02", titel:"Filmstart",                      jahr:1959, land:"DDR",    orte:["Magdeburg","Güstrow","Rostock","Rechenberg-Bienenmühle"], personen:["Helmut","Ilse","Annelise","Hans"], keywords:["Chronik","Winterurlaub","Familie"], inhalt:"Wohnung, Magdeburg; Güstrow, Rostock; Winterurlaub Rechenberg-Bienenmühle" },
+  { nr:"03", titel:"Chronik I",                      jahr:1959, land:"DDR",    orte:["Haldensleben","Schwerin"],          personen:["Helmut","Ilse","Andreas","Annelise","Hans"],        keywords:["Chronik","Familie","Weihnachten","Ostern"], inhalt:"Das Boot, Haldensleben; Die ersten Schritte; Weihnachten; Ostern 1960; Gisela in Schwerin" },
+  { nr:"04", titel:"Chronik II",                     jahr:1961, land:"DDR",    orte:["Schwerin"],                        personen:["Helmut","Ilse","Andreas","Annelise","Gerda"],       keywords:["Chronik","Familie","Natur"],         inhalt:"Kindertag des SFW; Am Ostdorfer See; Mit Oma in Friedrichsthal; Mit Gerda in Muess; Andreas und sein Spielzeug" },
+  { nr:"05", titel:"Tierpark Schwerin",              jahr:1961, land:"DDR",    orte:["Schwerin"],                        personen:["Helmut","Ilse","Andreas"],                          keywords:["Natur","Tiere","Ausflug"],           inhalt:"Sommer (Pfingsten) und Herbst im Tierpark" },
+  { nr:"06", titel:"Prerow",                         jahr:1961, land:"DDR",    orte:["Prerow","Darß"],                   personen:["Helmut","Ilse"],                                    keywords:["Ostsee","Urlaub","Natur"],           inhalt:"Schwarze Raben; Am Schloß Prerow" },
+  { nr:"07", titel:"Ein Tag in Prerow",              jahr:1962, land:"DDR",    orte:["Prerow","Darß"],                   personen:["Helmut","Ilse"],                                    keywords:["Ostsee","Urlaub"],                   inhalt:"" },
+  { nr:"08", titel:"Schmilka – Sächs. Schweiz / Mit 2 PKWs durch Mecklenburg", jahr:1962, land:"DDR", orte:["Schmilka","Mecklenburg"], personen:["Helmut","Ilse"],              keywords:["Natur","Ausflug","Wandern"],         inhalt:"Schmilka – Sächsische Schweiz; Mit 2 PKWs durch Mecklenburg" },
+  { nr:"09", titel:"Winter in Schwerin",             jahr:1963, land:"DDR",    orte:["Schwerin"],                        personen:["Helmut","Ilse","Andreas"],                          keywords:["Winter","Chronik"],                  inhalt:"" },
+  { nr:"10", titel:"Ostsee 1963",                    jahr:1963, land:"DDR",    orte:["Boltenhagen","Prerow","Zingst","Ribnitz","Rostock"], personen:["Helmut","Ilse","Annelise","Hans"], keywords:["Ostsee","Urlaub","Motorroller","Küste"], inhalt:"Ostern in Boltenhagen; Motorrollerfahrt: Prerow, Zingst, Ribnitz, Rostock" },
+  { nr:"11", titel:"Magdeburg",                      jahr:1964, land:"DDR",    orte:["Magdeburg"],                       personen:["Helmut","Ilse","Annelise","Hans"],                  keywords:["Stadtfilm","Chronik"],               inhalt:"" },
+  { nr:"12", titel:"Prag",                           jahr:1964, land:"ČSSR",   orte:["Prag"],                            personen:["Helmut","Ilse"],                                    keywords:["Städtereise","Kultur","Ausland"],    inhalt:"18.–19.5.1964" },
+  { nr:"13", titel:"Dranske",                        jahr:1964, land:"DDR",    orte:["Dranske","Rügen"],                 personen:["Helmut","Ilse"],                                    keywords:["Ostsee","Urlaub"],                   inhalt:"" },
+  { nr:"14", titel:"Reitzsee",                       jahr:1965, land:"DDR",    orte:["Reitzsee"],                        personen:["Helmut","Ilse"],                                    keywords:["Natur","See","Urlaub"],              inhalt:"" },
+  { nr:"15", titel:"Schulanfänge",                   jahr:1965, land:"DDR",    orte:["Schwerin","Berlin"],               personen:["Andreas","Wieland","Helmut","Ilse"],                keywords:["Familie","Schule","Meilenstein"],    inhalt:"Andreas in Schwerin (1.9.1965); Wieland in Berlin (1.9.1973)" },
+  { nr:"16", titel:"Trickfilme",                     jahr:1966, land:"DDR",    orte:[],                                  personen:["Helmut"],                                           keywords:["Trickfilm","Animation","Experiment"], inhalt:"Sonnenuntergang; Fischernachtgesang; Barbersuch mit Roboter; Teddys große Reise" },
+  { nr:"17", titel:"Eine (nicht gewünschte) Darßwanderung", jahr:1966, land:"DDR", orte:["Prerow","Darß"],              personen:["Helmut","Ilse"],                                    keywords:["Wandern","Ostsee","Natur"],          inhalt:"Prerow" },
+  { nr:"18", titel:"Der kleine Wieland",             jahr:1967, land:"DDR",    orte:["Gorinsee"],                        personen:["Wieland","Helmut","Ilse"],                          keywords:["Familie","Kind","Chronik"],          inhalt:"Plastik u. Blumen (1967); Campingausstellung (März 1968); Am Gorinsee (28.3.68)" },
+  { nr:"19", titel:"Mesdendorf",                     jahr:1968, land:"DDR",    orte:["Mesdendorf"],                      personen:["Helmut","Ilse"],                                    keywords:["Ausflug","Natur"],                   inhalt:"" },
+  { nr:"20", titel:"Prerow",                         jahr:1969, land:"DDR",    orte:["Prerow","Darß"],                   personen:["Helmut","Ilse"],                                    keywords:["Ostsee","Urlaub"],                   inhalt:"" },
+  { nr:"21", titel:"Pfingstausflug / Filmschnitt",   jahr:1970, land:"DDR",    orte:["Potsdam","Flechtingen","Güstrow","Prerow","Bleilochtalsperre","Lobenstein"], personen:["Helmut","Ilse","Andreas","Wieland"], keywords:["Ausflug","Schloss","Filmschnitt","Farbe","Pfingsten"], inhalt:"Schloß Charlottenhof, Potsdam; Wasserschloß Flechtingen; Schloß Mariengarten; Weihnachten 1970; Spritztour nach Güstrow; Bleilochtalsperre/Lobenstein; Prerow (Farbe) 1971" },
+  { nr:"22", titel:"Prerow",                         jahr:1972, land:"DDR",    orte:["Prerow","Darß"],                   personen:["Helmut","Ilse"],                                    keywords:["Ostsee","Urlaub"],                   inhalt:"" },
+  { nr:"23", titel:"Berlin – Weltfestspiele",        jahr:1973, land:"DDR",    orte:["Berlin","Alexanderplatz","Friedrichshain"], personen:["Helmut","Ilse"],                    keywords:["Stadtfilm","Weltfestspiele","Kultur","Geschichte"], inhalt:"Unter den Linden; Weltfestspiele; Fernsehturm; Alexanderplatz; Friedrichshain" },
+  { nr:"24", titel:"Moskau (März)",                  jahr:1973, land:"UdSSR",  orte:["Moskau"],                          personen:["Helmut"],                                           keywords:["Ausland","Sowjetunion","Städtereise","Geschichte","Kultur"], inhalt:"Kalinin Prospekt; Kremlpalast; Bjelorussischer Bf; Gorki Str.; Hotel Ukraine; Metrobrücke; Außenministerium" },
+  { nr:"25", titel:"Moskau (Herbst)",                jahr:1973, land:"UdSSR",  orte:["Moskau"],                          personen:["Helmut"],                                           keywords:["Ausland","Sowjetunion","Ausstellung","Geschichte"], inhalt:"Vor dem Fest (7.11.73); Volkswirtschaftsausstellung; Ringstraße; Puppentheater; Kursk Station; Kalinin Prospekt" },
+  { nr:"26", titel:"Moskau–Sagorsk",                 jahr:1973, land:"UdSSR",  orte:["Moskau","Sagorsk"],                personen:["Helmut"],                                           keywords:["Ausland","Sowjetunion","Flussfahrt","Natur"], inhalt:"Kreml; Flussfahrt auf der Moskwa; Park Sokolniki; Sagorsk" },
+  { nr:"27", titel:"Leningrad",                      jahr:1973, land:"UdSSR",  orte:["Leningrad"],                       personen:["Helmut"],                                           keywords:["Ausland","Sowjetunion","Städtereise"], inhalt:"" },
+  { nr:"28", titel:"Tula",                           jahr:1973, land:"UdSSR",  orte:["Tula"],                            personen:["Helmut"],                                           keywords:["Ausland","Sowjetunion"],             inhalt:"" },
+  { nr:"29", titel:"Nowgorod",                       jahr:1973, land:"UdSSR",  orte:["Nowgorod"],                        personen:["Helmut"],                                           keywords:["Ausland","Sowjetunion","Geschichte"], inhalt:"" },
+  { nr:"30", titel:"Taschkent",                      jahr:1974, land:"UdSSR",  orte:["Taschkent"],                       personen:["Helmut"],                                           keywords:["Ausland","Sowjetunion","Zentralasien"], inhalt:"" },
+  { nr:"31", titel:"Neugleboow / Ostsee",            jahr:1974, land:"DDR",    orte:["Stechlinsee","Prerow","Rügen","Bergen","Ralswiek","Sassnitz"], personen:["Helmut","Ilse","Andreas","Wieland"], keywords:["Ostsee","Urlaub","Natur","Boot","Rügen"], inhalt:"Wohnung – Balkon; Stechlinsee; Prerow – Fahrt mit der Möwe; Rügen – Bergen, Ralswiek, Sassnitz" },
+  { nr:"32", titel:"Leuenberg",                      jahr:1975, land:"DDR",    orte:["Leuenberg","Strausberg"],          personen:["Helmut","Ilse"],                                    keywords:["Wandern","Natur","Ausflug","Winter"], inhalt:"Weihnachtsmarkt 1974; Wanderung Leuenberg–Strausberg; Herbstbesuch am See" },
+  { nr:"33", titel:"Mala Fatra I",                   jahr:1975, land:"ČSSR",   orte:["Riesengebirge","Schneekoppe","Mala Fatra","Hohe Tatra"], personen:["Helmut","Ilse"],           keywords:["Ausland","Gebirge","Wandern","Camping","Natur"], inhalt:"Riesengebirge – Wanderung zur Schneekoppe; Novo-Mesto; Mala Fatra – Sokolim; Hohe Tatra" },
+  { nr:"34", titel:"Mala Fatra II",                  jahr:1975, land:"ČSSR",   orte:["Mala Fatra","Brno","Prag"],        personen:["Helmut","Ilse"],                                    keywords:["Ausland","Gebirge","Wandern","Camping","Städtereise"], inhalt:"Mala Fatra Roscouten; Brno; Macocha-Schlucht; Zeltplatz Prag" },
+  { nr:"35", titel:"Dranske / Harz",                 jahr:1976, land:"DDR",    orte:["Dranske","Rügen","Kap Arkona","Stralsund","Harz","Treseburg"], personen:["Helmut","Ilse"],     keywords:["Ostsee","Rügen","Harz","Wandern","Radtour"], inhalt:"Kap Arkona; Stralsund; Radtour nach Vitt; Bodetal bei Treseburg" },
+  { nr:"36", titel:"Sommer 77",                      jahr:1977, land:"DDR/ČSSR", orte:["Schwerin","Niedere Tatra"],      personen:["Helmut","Ilse","Andreas","Wieland"],                keywords:["Urlaub","Gebirge","Camping","Natur","Sommer"], inhalt:"Pfingsten in Mecklenburg (Klein Pritz/Schwerin); Dynamo Schwimmstadion; Niedere Tatra; Vojskova Dolina" },
+  { nr:"37", titel:"Łeba I",                         jahr:1977, land:"Polen",  orte:["Łeba"],                            personen:["Helmut","Ilse"],                                    keywords:["Ausland","Polen","Ostsee","Urlaub"], inhalt:"" },
+  { nr:"38", titel:"Łeba II",                        jahr:1978, land:"Polen",  orte:["Łeba"],                            personen:["Helmut","Ilse"],                                    keywords:["Ausland","Polen","Ostsee","Urlaub"], inhalt:"" },
+  { nr:"39", titel:"Winter 78/79",                   jahr:1978, land:"DDR",    orte:["Berlin","Elbsandsteingebirge","Wehlen","Rathen"], personen:["Helmut","Ilse","Kurt"],           keywords:["Winter","Wandern","Familie","Weihnachten"], inhalt:"Stadtbad Lichtenberg; Weihnachten 78 (Opa, Autorennbahn); Winter Feb 1979; Elbsandsteingebirge" },
+  { nr:"40", titel:"15.000 km entlang der Transib",  jahr:1979, land:"UdSSR",  orte:["Moskau","Chabarowsk","Baikalsee","Irkutsk"], personen:["Helmut"],                              keywords:["Ausland","Sowjetunion","Eisenbahn","Transsibirien","Abenteuer","Natur"], inhalt:"Moskau; Transsibirische Eisenbahn; Chabarowsk; Baikal und Irkutsk" },
+  { nr:"41", titel:"Urlaub an der Moldau",           jahr:1980, land:"ČSSR",   orte:["Lipno","Český Krumlov","Jičín"],   personen:["Helmut","Ilse"],                                    keywords:["Ausland","Natur","Camping","Wandern","Städtereise"], inhalt:"Zeltplatz Hurden; Freyenburg/Lipno; Horicz/Boubín; Český Krumlov; Jičín/Dvůr Králové" },
+  { nr:"42", titel:"Budapest",                       jahr:1982, land:"Ungarn", orte:["Budapest"],                        personen:["Helmut","Ilse"],                                    keywords:["Ausland","Städtereise","Kultur"],    inhalt:"" },
+  { nr:"43", titel:"Roháče",                         jahr:1983, land:"ČSSR",   orte:["Schmilka","Nymburg","Litomyšl","Beskydy","Piešťany"], personen:["Helmut","Ilse"],              keywords:["Ausland","Gebirge","Camping","Wandern","Natur"], inhalt:"Fahrt durch die ČSSR: Schmilka, Nymburg, Litomyšl; Beskydy; Zeltplatz Čerovka; Opavas-Stausee/Piešťany" },
+  { nr:"44", titel:"Bulgarien",                      jahr:1984, land:"Bulgarien", orte:["Bulgarien"],                    personen:["Helmut","Ilse"],                                    keywords:["Ausland","Urlaub","Sommer"],         inhalt:"" },
+  { nr:"45", titel:"Garten",                         jahr:1984, land:"DDR",    orte:["Berlin"],                          personen:["Helmut","Ilse"],                                    keywords:["Garten","Alltag","Fernsehturm"],     inhalt:"Garten; VKSK; Fernsehturm; Hubschrauber" },
+  { nr:"46", titel:"Pirna – Hochzeit Andreas & Angela", jahr:1986, land:"DDR", orte:["Pirna"],                           personen:["Helmut","Ilse","Andreas","Angela"],                 keywords:["Hochzeit","Familie","Meilenstein","Elbe"], inhalt:"Elbe bei Pirna; Stadtaufnahmen; Hochzeit Andreas und Angela; Spaziergang an Elbe" },
+  { nr:"47", titel:"Kurzurlaube",                    jahr:1985, land:"DDR",    orte:["Fläming","Wiesenburg","Useriner See"], personen:["Helmut","Ilse"],                              keywords:["Urlaub","Natur","Schloss","See"],    inhalt:"Fläming, Rödiche, Pfingsten 85; Schloß u. Park Wiesenburg; Am Useriner See, August 86" },
+  { nr:"48", titel:"Bei Mummel und Reiher",          jahr:1987, land:"DDR",    orte:["Useriner See","Kramsee","Woblitzsee","Pagelsee"], personen:["Helmut","Ilse"],                  keywords:["Natur","See","Segeln","Vögel","Urlaub"], inhalt:"Urlaub am Useriner See; Kramsee; Zeltplatz C 60; Havel vom Pagelsee bis zum Woblitzsee" },
+  { nr:"49", titel:"Warschauer Leben",               jahr:1987, land:"Polen",  orte:["Warschau"],                        personen:["Helmut"],                                           keywords:["Ausland","Polen","Städtereise"],     inhalt:"" },
+  { nr:"50", titel:"Familie Busse junior",           jahr:1982, land:"DDR",    orte:["Prag","Teplitz","Dresden"],        personen:["Helmut","Ilse","Andreas","Angela","Conny","Katleen"], keywords:["Familie","Meilenstein","Chronik","Enkel"], inhalt:"Besuch in Prag und Teplitz, Mai 82; Theaterbesuch Dresden, Mai 82; Glückliche Eltern und Großeltern, Okt 87; Katleen – 1 Monat alt" },
+  { nr:"51", titel:"Frühling 88",                    jahr:1988, land:"DDR",    orte:["Berlin","Hellersdorf","Hoppegarten"], personen:["Helmut","Ilse"],                               keywords:["Alltag","Baustelle","Chronik"],      inhalt:"Baustelle Hellersdorf – P. Verner Str. Jan 88; Baustelle und Wohnung P. Verner Str. 46, Apr 88; Hoppegarten, Apr 88" },
+  { nr:"52", titel:"VYLYM 88",                       jahr:1989, land:"DDR",    orte:["Useriner See","Tiefen Trebbow"],   personen:["Helmut","Ilse"],                                    keywords:["Natur","See","Segeln","Vögel","Wald"], inhalt:"Hochwald; Tiefen Trebbow; Segeln auf dem Useriner See; Alte Bäume am Ufer; Eulen gesucht" },
+  { nr:"53", titel:"Katleen im Jahre 2",             jahr:1988, land:"DDR",    orte:["Berlin","Hellersdorf","Weißensee"], personen:["Katleen","Helmut","Ilse","Andreas","Angela"],      keywords:["Familie","Enkel","Chronik","Weihnachten"], inhalt:"Weihnachten 1988 in Hellersdorf; Sommertag am Weißensee, Juli 1989" },
+  { nr:"54", titel:"150 Jahre 1. deutsche Ferneisenbahn", jahr:1989, land:"DDR", orte:["Riesa"],                        personen:["Helmut"],                                           keywords:["Eisenbahn","Geschichte","Technik","Fest"], inhalt:"Sonderzugabfahrt; Volks- und Bahnhofsfest in Riesa; Fahrzeugparade mit der Saxonia" },
+];
+
+// ── POPULATE FILTERS ───────────────────────────────────────────
+function unique(arr) { return [...new Set(arr)].sort(); }
+
+const allJahre    = unique(films.map(f => f.jahr));
+const allLaender  = unique(films.map(f => f.land));
+const allOrte     = unique(films.flatMap(f => f.orte));
+const allPersonen = ["Ilse","Helmut","Andreas","Wieland","Annelise","Hans","Gerda","Wolfgang","Angela","Conny","Katleen","Kurt"];
+const allKeywords = unique(films.flatMap(f => f.keywords));
+
+function populateSelect(id, values) {
+  const sel = document.getElementById(id);
+  values.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    sel.appendChild(o);
+  });
+}
+populateSelect('f-jahr',   allJahre);
+populateSelect('f-land',   allLaender);
+populateSelect('f-ort',    allOrte);
+populateSelect('f-person', allPersonen);
+populateSelect('f-kw',     allKeywords);
+
+// ── RENDER CARDS ───────────────────────────────────────────────
+function renderCard(f) {
+  const personsHtml = f.personen.map(p =>
+    `<span class="person-tag">${p}</span>`).join('');
+  const kwHtml = f.keywords.map(k =>
+    `<span class="kw-tag">${k}</span>`).join('');
+  const orteHtml = f.orte.slice(0,3).map(o =>
+    `<span class="tag ort">📍 ${o}</span>`).join('');
+  const filmBtn = `<span class="btn-film placeholder">▶ Film (Platzhalter)</span>`;
+
+  return `
+  <div class="film-card" data-nr="${f.nr}">
+    <div class="card-header">
+      <span class="card-nr">${f.nr}</span>
+      <span class="card-title">${f.titel}</span>
+    </div>
+    <div class="card-body">
+      <div class="card-meta">
+        <span class="tag jahr">📅 ${f.jahr}</span>
+        <span class="tag land">${f.land}</span>
+        ${orteHtml}
+      </div>
+      ${f.inhalt ? `<div class="card-inhalt">${f.inhalt}</div>` : ''}
+      ${f.personen.length ? `<div class="card-persons">${personsHtml}</div>` : ''}
+      ${f.keywords.length ? `<div class="card-keywords">${kwHtml}</div>` : ''}
+    </div>
+    <div class="card-footer">
+      ${filmBtn}
+    </div>
+  </div>`;
+}
+
+// ── FILTER LOGIC ───────────────────────────────────────────────
+function applyFilters() {
+  const search = document.getElementById('f-search').value.toLowerCase();
+  const jahr   = document.getElementById('f-jahr').value;
+  const land   = document.getElementById('f-land').value;
+  const ort    = document.getElementById('f-ort').value;
+  const person = document.getElementById('f-person').value;
+  const kw     = document.getElementById('f-kw').value;
+
+  const filtered = films.filter(f => {
+    if (jahr   && String(f.jahr) !== jahr)                    return false;
+    if (land   && f.land !== land)                            return false;
+    if (ort    && !f.orte.includes(ort))                      return false;
+    if (person && !f.personen.includes(person))               return false;
+    if (kw     && !f.keywords.includes(kw))                   return false;
+    if (search) {
+      const hay = [f.titel, f.inhalt, ...f.orte, ...f.personen, ...f.keywords, String(f.jahr), f.land].join(' ').toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  const grid = document.getElementById('film-grid');
+  const empty = document.getElementById('empty-state');
+  grid.innerHTML = filtered.map(renderCard).join('');
+  document.getElementById('count-shown').textContent = filtered.length;
+  empty.style.display = filtered.length === 0 ? 'block' : 'none';
+}
+
+function resetFilters() {
+  document.getElementById('f-search').value = '';
+  ['f-jahr','f-land','f-ort','f-person','f-kw'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  applyFilters();
+}
+
+// Initial render
+applyFilters();
+</script>
+</body>
+</html>
